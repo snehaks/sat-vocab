@@ -472,23 +472,50 @@
 
         function autocomplete() {
             const input = document.getElementById('word-input');
-            const filter = input.value.toLowerCase();
+            const filter = input.value.toLowerCase().trim();
             const autocompleteList = document.getElementById('autocomplete-list');
-            autocompleteList.innerHTML = ''; // Clear previous suggestions
+            
+            autocompleteList.innerHTML = '';
 
-            if (!filter) return; // Exit if input is empty
+            if (!filter) {
+                autocompleteList.style.display = 'none';
+                return;
+            }
 
-            const suggestions = vocabularyData.filter(word => word.toLowerCase().startsWith(filter));
-            suggestions.forEach(suggestion => {
-                const item = document.createElement('div');
-                item.textContent = suggestion;
-                item.onclick = () => {
-                    input.value = suggestion; // Set input value to suggestion
-                    autocompleteList.innerHTML = ''; // Clear suggestions
-                };
-                autocompleteList.appendChild(item);
-            });
+            // Get all rows from the table
+            const tableBody = document.getElementById('vocab-table').getElementsByTagName('tbody')[0];
+            const rows = Array.from(tableBody.rows);
+
+            // Find matching words
+            const matches = rows
+                .map(row => row.cells[0].textContent.trim())
+                .filter(word => word.toLowerCase().startsWith(filter))
+                .slice(0, 5); // Limit to 5 suggestions
+
+            if (matches.length > 0) {
+                autocompleteList.style.display = 'block';
+                matches.forEach(match => {
+                    const div = document.createElement('div');
+                    div.textContent = match;
+                    div.onclick = () => {
+                        input.value = match;
+                        autocompleteList.innerHTML = '';
+                        autocompleteList.style.display = 'none';
+                        searchWord(); // Automatically search when selecting a suggestion
+                    };
+                    autocompleteList.appendChild(div);
+                });
+            } else {
+                autocompleteList.style.display = 'none';
+            }
         }
+
+        // Close autocomplete list when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.matches('#word-input')) {
+                document.getElementById('autocomplete-list').style.display = 'none';
+            }
+        });
 
         function searchWord() {
             const input = document.getElementById('word-input').value.toLowerCase().trim();
