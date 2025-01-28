@@ -29,14 +29,13 @@
             background: linear-gradient(135deg, #f0f8ff, #e6e6fa);
             border-radius: 10px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            padding: 20px; /* Increased padding */
-            margin: 20px auto; /* Centered with auto margins */
-            width: calc(100% - 40px); /* Adjusted width */
+            padding: 20px;
+            margin: 20px auto;
+            width: calc(100% - 40px);
             box-sizing: border-box;
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px; /* Increased gap */
-            max-width: 800px; /* Optional: Set a max width for better centering */
+            display: flex;
+            flex-direction: column;
+            max-width: 800px;
         }
         h2 {
             color: #ff6f61;
@@ -143,7 +142,7 @@
         .button-container {
             display: flex;
             justify-content: center; /* Center the buttons */
-            margin-top: 20px;
+            margin-top: 10px; /* Reduced margin */
             grid-column: span 2; /* Ensure buttons span the full width */
         }
         #main-container {
@@ -210,33 +209,42 @@
                 min-width: 0; /* Allow input to shrink if needed */
             }
         }
-        .autocomplete-items {
+        #autocomplete-list {
             position: absolute;
-            top: 100%;
+            top: calc(100% + 5px);
             left: 0;
-            right: 0;
-            z-index: 99;
+            width: calc(100% - 120px);
             background-color: white;
             border: 1px solid #ddd;
-            border-radius: 0 0 8px 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
             max-height: 200px;
             overflow-y: auto;
+            z-index: 1000;
+            display: none;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+            visibility: visible;
         }
 
-        .autocomplete-items div {
-            padding: 10px;
+        #autocomplete-list div {
+            padding: 12px;
             cursor: pointer;
             border-bottom: 1px solid #f4f4f4;
         }
 
-        .autocomplete-items div:hover {
-            background-color: #f0f0f0;
+        #autocomplete-list div:hover {
+            background-color: #f8f8f8;
         }
-
-        .autocomplete-items div:last-child {
-            border-bottom: none;
-            border-radius: 0 0 8px 8px;
+        #vocab-quiz {
+            display: flex;
+            flex-direction: column;
+            gap: 10px; /* Reduced gap */
+        }
+        #column1 {
+            display: flex;
+            flex-direction: column;
         }
     </style>
 </head>
@@ -257,8 +265,8 @@
         <section id="word-search-section">
             <h2>Word Search</h2>
             <div class="search-container">
-                <input type="text" id="word-input" placeholder="Type a word..." oninput="autocomplete()">
-                <button id="search-button" onclick="searchWord()">Search</button>
+                <input type="text" id="word-input" placeholder="Type a word..." oninput="handleAutocomplete()">
+                <button id="search-button" onclick="searchWord()" style="display: none;">Search</button>
                 <div id="autocomplete-list" class="autocomplete-items"></div>
             </div>
             <div id="search-results"></div>
@@ -498,87 +506,63 @@
             resultsDiv.textContent = ''; // Clear previous results
         }
 
-        // Add input event listener to trigger autocomplete
-        document.getElementById('word-input').addEventListener('input', function() {
-            autocomplete();
-        });
-
-        function autocomplete() {
+        function handleAutocomplete() {
             const input = document.getElementById('word-input');
             const filter = input.value.toLowerCase().trim();
             const autocompleteList = document.getElementById('autocomplete-list');
             
+            // Debug logs
+            console.log('Filter:', filter);
+            console.log('Autocomplete list element:', autocompleteList);
+            
             // Clear previous results
             autocompleteList.innerHTML = '';
-            autocompleteList.style.display = 'none';
-
-            if (!filter) return;
-
-            // Debug log
-            console.log('Searching for:', filter);
-
-            // Get all words from the table's first column
-            const tableBody = document.getElementById('vocab-table').getElementsByTagName('tbody')[0];
-            if (!tableBody) {
-                console.error('Table body not found');
+            
+            if (!filter) {
+                autocompleteList.style.display = 'none';
                 return;
             }
 
+            const tableBody = document.getElementById('vocab-table').getElementsByTagName('tbody')[0];
+            if (!tableBody) return;
+
             const rows = Array.from(tableBody.rows);
-            console.log('Number of rows:', rows.length);
-            
-            // Find matching words that start with the input
             let matches = [];
+            
+            // Find matches
             for (const row of rows) {
                 const wordInTable = row.cells[0].textContent.trim();
-                console.log('Checking word:', wordInTable);
                 if (wordInTable.toLowerCase().startsWith(filter)) {
                     matches.push(wordInTable);
-                    if (matches.length >= 5) break; // Limit to 5 suggestions
+                    if (matches.length >= 5) break;
                 }
             }
 
+            // Debug log
             console.log('Matches found:', matches);
 
-            // Display matches if any found
+            // Display matches
             if (matches.length > 0) {
+                //console.log('Showing autocomplete list');
                 autocompleteList.style.display = 'block';
                 matches.forEach(match => {
                     const div = document.createElement('div');
                     div.textContent = match;
                     div.addEventListener('click', function() {
                         input.value = match;
-                        autocompleteList.innerHTML = '';
                         autocompleteList.style.display = 'none';
-                        searchWord(); // Automatically search when selecting a suggestion
+                        searchWord();
                     });
                     autocompleteList.appendChild(div);
                 });
-            }
-        }
-
-        // Close autocomplete list when clicking outside
-        document.addEventListener('click', function(e) {
-            const autocompleteList = document.getElementById('autocomplete-list');
-            if (!e.target.matches('#word-input')) {
+                // Debug - check final state
+                //console.log('Autocomplete list display style:', autocompleteList.style.display);
+                console.log('Autocomplete list contents:', autocompleteList.innerHTML);
+            } else {
+                console.log('Hiding autocomplete list - no matches');
                 autocompleteList.style.display = 'none';
             }
-        });
-
-        // Add keyboard navigation
-        document.getElementById('word-input').addEventListener('keydown', function(e) {
-            const autocompleteList = document.getElementById('autocomplete-list');
-            if (e.key === 'Enter' && autocompleteList.style.display === 'block') {
-                e.preventDefault();
-                const firstMatch = autocompleteList.firstChild;
-                if (firstMatch) {
-                    this.value = firstMatch.textContent;
-                    autocompleteList.innerHTML = '';
-                    autocompleteList.style.display = 'none';
-                    searchWord();
-                }
-            }
-        });
+        }
 
         function searchWord() {
             const input = document.getElementById('word-input').value.toLowerCase().trim();
