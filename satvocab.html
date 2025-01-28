@@ -205,35 +205,20 @@
     </table>
     <script>
         const wordsData = []; // Array to hold words data for autocomplete
-        let vocabularyData = []; // Global variable to store the data
 
-        function loadSATWords() {
-            const xhr = new XMLHttpRequest();
-            xhr.open('GET', 'SAT_Words.xlsx', true);
-            xhr.responseType = 'arraybuffer';
-
-            xhr.onload = function(e) {
-                if (xhr.status === 200) {
-                    const data = new Uint8Array(xhr.response);
-                    const workbook = XLSX.read(data, { type: 'array' });
-                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
-                    
-                    // Store data and populate table
-                    vocabularyData = jsonData.slice(1); // Skip header row
-                    populateTable(jsonData);
-                    populateQuiz(vocabularyData);
-                    wordsData.push(...jsonData.slice(1).map(row => row[0])); // Store words for autocomplete
-                } else {
-                    console.error('Failed to load the Excel file');
-                }
-            };
-
-            xhr.onerror = function(e) {
-                console.error('Error loading the Excel file:', e);
-            };
-
-            xhr.send();
+        async function fetchSATWords() {
+            try {
+                const response = await fetch('/api/sat-words');
+                if (!response.ok) throw new Error('Network response was not ok');
+                const data = await response.json();
+                console.log('Fetched data:', data);
+                populateTable(data);
+                populateQuiz(data.slice(1)); // Skip header row for quiz
+                wordsData.push(...data.slice(1).map(row => row[0])); // Store words for autocomplete
+            } catch (error) {
+                console.error('Error fetching SAT words:', error);
+                alert('Failed to load SAT words. Please try again later.');
+            }
         }
 
         function populateTable(data) {
@@ -311,16 +296,85 @@
         }
 
         function loadNewQuestion() {
-            fetch('/api/sat-words')
-                .then(response => response.json())
-                .then(data => {
-                    populateQuiz(data.slice(1)); // Refresh only the quiz section
-                    document.getElementById('results').textContent = ''; // Clear previous results
-                })
-                .catch(error => {
-                    console.error('Error fetching SAT words:', error);
-                    alert('Failed to load a new question. Please try again later.');
-                });
+            // Clear previous results and feedback
+            document.getElementById('results').textContent = '';
+            document.getElementById('feedback1').textContent = '';
+            
+            // Get all rows from the table
+            const tableBody = document.getElementById('vocab-table').getElementsByTagName('tbody')[0];
+            const rows = Array.from(tableBody.rows);
+            
+            if (rows.length > 0) {
+                const column1 = document.getElementById('column1');
+                column1.innerHTML = ''; // Clear existing question
+
+                // Select a random word from the table
+                const randomIndex = Math.floor(Math.random() * rows.length);
+                const randomRow = rows[randomIndex];
+                
+                // Get the word and its properties
+                const word = randomRow.cells[0].textContent.trim();
+                const meaning = randomRow.cells[1].textContent.trim();
+                const synonyms = randomRow.cells[2].textContent.trim();
+                const antonyms = randomRow.cells[3].textContent.trim();
+
+                const questionDiv = document.createElement('div');
+                questionDiv.classList.add('quiz-question');
+
+                // Randomly choose question type
+                const questionType = Math.floor(Math.random() * 3);
+                let correctAnswer, questionText;
+
+                // Set question based on type
+                if (questionType === 0) {
+                    correctAnswer = meaning;
+                    questionText = `What is the meaning of "${word}"?`;
+                } else if (questionType === 1) {
+                    correctAnswer = synonyms;
+                    questionText = `What is a synonym of "${word}"?`;
+                } else {
+                    correctAnswer = antonyms;
+                    questionText = `What is an antonym of "${word}"?`;
+                }
+
+                // Generate options including the correct answer
+                const options = [correctAnswer];
+                
+                // Add random wrong options
+                while (options.length < 4) {
+                    const randomWrongIndex = Math.floor(Math.random() * rows.length);
+                    const wrongRow = rows[randomWrongIndex];
+                    const wrongAnswer = questionType === 0 ? 
+                        wrongRow.cells[1].textContent.trim() : 
+                        (questionType === 1 ? 
+                            wrongRow.cells[2].textContent.trim() : 
+                            wrongRow.cells[3].textContent.trim());
+                            
+                    if (!options.includes(wrongAnswer) && wrongAnswer !== correctAnswer) {
+                        options.push(wrongAnswer);
+                    }
+                }
+
+                // Shuffle options
+                for (let i = options.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [options[i], options[j]] = [options[j], options[i]];
+                }
+
+                // Create the question HTML
+                questionDiv.innerHTML = `
+                    <label for="question1">${questionText}</label>
+                    <select id="question1" name="question1">
+                        <option value="">Select an answer...</option>
+                        ${options.map(option => 
+                            `<option value="${option}" ${option === correctAnswer ? 'data-correct="true"' : ''}>${option}</option>`
+                        ).join('')}
+                    </select>
+                    <div class="feedback" id="feedback1"></div>
+                `;
+
+                column1.appendChild(questionDiv);
+            }
         }
 
         function handleSubmit(event) {
@@ -373,25 +427,53 @@
         }
 
         function searchWord() {
-            const input = document.getElementById('word-input').value;
+            const input = document.getElementById('word-input').value.toLowerCase().trim();
             const resultsDiv = document.getElementById('search-results');
-            resultsDiv.innerHTML = ''; // Clear previous results
+            resultsDiv.innerHTML = '';
 
-            const wordRow = vocabularyData.find(row => row[0].toLowerCase() === input.toLowerCase());
-            if (wordRow) {
-                resultsDiv.innerHTML = `
-                    <p><strong>Meaning:</strong> ${wordRow[1]}</p>
-                    <p><strong>Synonyms:</strong> ${wordRow[2]}</p>
-                    <p><strong>Antonyms:</strong> ${wordRow[3]}</p>
-                    <p><strong>Example Sentence:</strong> ${wordRow[4]}</p>
-                `;
-            } else {
-                resultsDiv.innerHTML = '<p>Word not found.</p>';
+            if (!input) {
+                resultsDiv.innerHTML = '<p>Please enter a word to search.</p>';
+                return;
+            }
+
+            // Get all rows from the table
+            const tableBody = document.getElementById('vocab-table').getElementsByTagName('tbody')[0];
+            const rows = Array.from(tableBody.rows);
+
+            // Find the matching row with exact match
+            let found = false;
+            for (const row of rows) {
+                const wordCell = row.cells[0];
+                const wordText = wordCell.textContent.toLowerCase().trim();
+                
+                // Debug log
+                console.log('Comparing:', input, 'with:', wordText);
+                
+                if (wordText === input) {
+                    found = true;
+                    const meaning = row.cells[1].textContent.trim();
+                    const synonyms = row.cells[2].textContent.trim();
+                    const antonyms = row.cells[3].textContent.trim();
+                    const example = row.cells[4].textContent.trim();
+
+                    resultsDiv.innerHTML = `
+                        <p><strong>Word:</strong> ${wordCell.textContent.trim()}</p>
+                        <p><strong>Meaning:</strong> ${meaning}</p>
+                        <p><strong>Synonyms:</strong> ${synonyms}</p>
+                        <p><strong>Antonyms:</strong> ${antonyms}</p>
+                        <p><strong>Example Sentence:</strong> ${example}</p>
+                    `;
+                    break;
+                }
+            }
+
+            if (!found) {
+                resultsDiv.innerHTML = '<p>Word not found. Please check the spelling and try again.</p>';
             }
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            loadSATWords();
+            fetchSATWords();
         });
     </script>
 </body>
