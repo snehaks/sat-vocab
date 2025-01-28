@@ -210,6 +210,34 @@
                 min-width: 0; /* Allow input to shrink if needed */
             }
         }
+        .autocomplete-items {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            z-index: 99;
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 0 0 8px 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .autocomplete-items div {
+            padding: 10px;
+            cursor: pointer;
+            border-bottom: 1px solid #f4f4f4;
+        }
+
+        .autocomplete-items div:hover {
+            background-color: #f0f0f0;
+        }
+
+        .autocomplete-items div:last-child {
+            border-bottom: none;
+            border-radius: 0 0 8px 8px;
+        }
     </style>
 </head>
 <body>
@@ -231,8 +259,8 @@
             <div class="search-container">
                 <input type="text" id="word-input" placeholder="Type a word..." oninput="autocomplete()">
                 <button id="search-button" onclick="searchWord()">Search</button>
+                <div id="autocomplete-list" class="autocomplete-items"></div>
             </div>
-            <div id="autocomplete-list" class="autocomplete-items"></div>
             <div id="search-results"></div>
         </section>
     </div>
@@ -470,50 +498,85 @@
             resultsDiv.textContent = ''; // Clear previous results
         }
 
+        // Add input event listener to trigger autocomplete
+        document.getElementById('word-input').addEventListener('input', function() {
+            autocomplete();
+        });
+
         function autocomplete() {
             const input = document.getElementById('word-input');
             const filter = input.value.toLowerCase().trim();
             const autocompleteList = document.getElementById('autocomplete-list');
             
+            // Clear previous results
             autocompleteList.innerHTML = '';
+            autocompleteList.style.display = 'none';
 
-            if (!filter) {
-                autocompleteList.style.display = 'none';
+            if (!filter) return;
+
+            // Debug log
+            console.log('Searching for:', filter);
+
+            // Get all words from the table's first column
+            const tableBody = document.getElementById('vocab-table').getElementsByTagName('tbody')[0];
+            if (!tableBody) {
+                console.error('Table body not found');
                 return;
             }
 
-            // Get all rows from the table
-            const tableBody = document.getElementById('vocab-table').getElementsByTagName('tbody')[0];
             const rows = Array.from(tableBody.rows);
+            console.log('Number of rows:', rows.length);
+            
+            // Find matching words that start with the input
+            let matches = [];
+            for (const row of rows) {
+                const wordInTable = row.cells[0].textContent.trim();
+                console.log('Checking word:', wordInTable);
+                if (wordInTable.toLowerCase().startsWith(filter)) {
+                    matches.push(wordInTable);
+                    if (matches.length >= 5) break; // Limit to 5 suggestions
+                }
+            }
 
-            // Find matching words
-            const matches = rows
-                .map(row => row.cells[0].textContent.trim())
-                .filter(word => word.toLowerCase().startsWith(filter))
-                .slice(0, 5); // Limit to 5 suggestions
+            console.log('Matches found:', matches);
 
+            // Display matches if any found
             if (matches.length > 0) {
                 autocompleteList.style.display = 'block';
                 matches.forEach(match => {
                     const div = document.createElement('div');
                     div.textContent = match;
-                    div.onclick = () => {
+                    div.addEventListener('click', function() {
                         input.value = match;
                         autocompleteList.innerHTML = '';
                         autocompleteList.style.display = 'none';
                         searchWord(); // Automatically search when selecting a suggestion
-                    };
+                    });
                     autocompleteList.appendChild(div);
                 });
-            } else {
-                autocompleteList.style.display = 'none';
             }
         }
 
         // Close autocomplete list when clicking outside
         document.addEventListener('click', function(e) {
+            const autocompleteList = document.getElementById('autocomplete-list');
             if (!e.target.matches('#word-input')) {
-                document.getElementById('autocomplete-list').style.display = 'none';
+                autocompleteList.style.display = 'none';
+            }
+        });
+
+        // Add keyboard navigation
+        document.getElementById('word-input').addEventListener('keydown', function(e) {
+            const autocompleteList = document.getElementById('autocomplete-list');
+            if (e.key === 'Enter' && autocompleteList.style.display === 'block') {
+                e.preventDefault();
+                const firstMatch = autocompleteList.firstChild;
+                if (firstMatch) {
+                    this.value = firstMatch.textContent;
+                    autocompleteList.innerHTML = '';
+                    autocompleteList.style.display = 'none';
+                    searchWord();
+                }
             }
         });
 
