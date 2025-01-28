@@ -163,6 +163,53 @@
         #word-search-section {
             min-width: 300px; /* Optional: Set a minimum width for the search section */
         }
+        .search-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            position: relative;
+            width: 100%;
+        }
+
+        #word-input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s, box-shadow 0.3s;
+            box-sizing: border-box;
+        }
+
+        #search-button {
+            white-space: nowrap;
+            padding: 12px 24px;
+            background-color: #ff6f61;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.2s;
+            flex-shrink: 0; /* Prevent button from shrinking */
+        }
+
+        #search-button:hover {
+            background-color: #ff4a3d;
+            transform: translateY(-2px);
+        }
+
+        /* Ensure responsive layout */
+        @media (max-width: 768px) {
+            .search-container {
+                flex-wrap: nowrap; /* Prevent wrapping on small screens */
+            }
+            
+            #word-input {
+                min-width: 0; /* Allow input to shrink if needed */
+            }
+        }
     </style>
 </head>
 <body>
@@ -181,9 +228,11 @@
         
         <section id="word-search-section">
             <h2>Word Search</h2>
-            <input type="text" id="word-input" placeholder="Type a word..." oninput="autocomplete()">
+            <div class="search-container">
+                <input type="text" id="word-input" placeholder="Type a word..." oninput="autocomplete()">
+                <button id="search-button" onclick="searchWord()">Search</button>
+            </div>
             <div id="autocomplete-list" class="autocomplete-items"></div>
-            <button id="search-button" onclick="searchWord()">Search</button>
             <div id="search-results"></div>
         </section>
     </div>
@@ -470,6 +519,7 @@
                     const synonyms = row.cells[2].textContent.trim();
                     const antonyms = row.cells[3].textContent.trim();
                     const example = row.cells[4].textContent.trim();
+                    const wordType = row.cells[5].textContent.trim();
 
                     resultsDiv.innerHTML = `
                         <p><strong>Word:</strong> ${wordCell.textContent.trim()}</p>
@@ -477,6 +527,7 @@
                         <p><strong>Synonyms:</strong> ${synonyms}</p>
                         <p><strong>Antonyms:</strong> ${antonyms}</p>
                         <p><strong>Example Sentence:</strong> ${example}</p>
+                        <p><strong>Word Type:</strong> ${wordType}</p>
                     `;
                     break;
                 }
