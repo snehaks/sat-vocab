@@ -204,21 +204,34 @@
         </tbody>
     </table>
     <script>
-        const wordsData = []; // Array to hold words data for autocomplete
+        let vocabularyData = []; // Global variable to store the data
 
-        async function fetchSATWords() {
-            try {
-                const response = await fetch('/api/sat-words');
-                if (!response.ok) throw new Error('Network response was not ok');
-                const data = await response.json();
-                console.log('Fetched data:', data);
-                populateTable(data);
-                populateQuiz(data.slice(1)); // Skip header row for quiz
-                wordsData.push(...data.slice(1).map(row => row[0])); // Store words for autocomplete
-            } catch (error) {
-                console.error('Error fetching SAT words:', error);
-                alert('Failed to load SAT words. Please try again later.');
-            }
+        function loadSATWords() {
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', 'SAT_Words.xlsx', true);
+            xhr.responseType = 'arraybuffer';
+
+            xhr.onload = function(e) {
+                if (xhr.status === 200) {
+                    const data = new Uint8Array(xhr.response);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+                    
+                    // Store data and populate table
+                    vocabularyData = jsonData.slice(1); // Skip header row
+                    populateTable(jsonData);
+                    populateQuiz(vocabularyData);
+                } else {
+                    console.error('Failed to load SAT_Words.xlsx');
+                }
+            };
+
+            xhr.onerror = function() {
+                console.error('Error loading SAT_Words.xlsx');
+            };
+
+            xhr.send();
         }
 
         function populateTable(data) {
@@ -374,6 +387,8 @@
                 `;
 
                 column1.appendChild(questionDiv);
+            } else {
+                console.error('No vocabulary data available');
             }
         }
 
@@ -414,7 +429,7 @@
 
             if (!filter) return; // Exit if input is empty
 
-            const suggestions = wordsData.filter(word => word.toLowerCase().startsWith(filter));
+            const suggestions = vocabularyData.filter(word => word.toLowerCase().startsWith(filter));
             suggestions.forEach(suggestion => {
                 const item = document.createElement('div');
                 item.textContent = suggestion;
@@ -473,7 +488,7 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            fetchSATWords();
+            loadSATWords();
         });
     </script>
 </body>
